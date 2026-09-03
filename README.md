@@ -1,2 +1,2 @@
 # MuleNet
-Recursio Hackathon project
+Recursion Hackathon project
