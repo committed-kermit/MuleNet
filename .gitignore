@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.env
+*.db
+*.db-shm
+*.db-wal
+node_modules/
+dist/
+.DS_Store
+*.egg-info/
+.pytest_cache/
+*.joblib
+*.pt
+*.json
+!backend/artifacts/sequence_model_meta.json
