@@ -18,6 +18,7 @@ from typing import Tuple, Dict, Any, List, Optional
 import numpy as np
 
 from app.services.subgraph_extractor import subgraph_extractor
+from app.services.ring_detector import ring_detector
 
 
 class MuleGATModel(nn.Module):
@@ -223,6 +224,49 @@ class NetworkRiskEngine:
                     f"account in active laundering topology."
                 )
             })
+
+        # Ring detector signals
+        try:
+            ring_analysis = ring_detector.analyse(
+                account_id=account_id,
+                graph=graph_manager.graph,
+                as_of_timestamp=as_of_timestamp,
+                hops=3
+            )
+            if ring_analysis["in_ring"]:
+                score = max(score, 0.82)
+                reasons.append({
+                    "signal": "circular_routing_detected",
+                    "weight": 0.50,
+                    "explanation": ring_analysis["signals"][0] if ring_analysis["signals"] else
+                        f"Account participates in a {ring_analysis['cycle_length']}-node circular routing ring."
+                })
+            if ring_analysis["device_syndicate"]:
+                score = max(score, 0.70)
+                reasons.append({
+                    "signal": "device_sharing_syndicate",
+                    "weight": 0.40,
+                    "explanation": (
+                        f"Account shares device fingerprint with "
+                        f"{len(ring_analysis['syndicate_accounts'])} other account(s): "
+                        f"{', '.join(ring_analysis['syndicate_accounts'][:3])}."
+                    )
+                })
+            if ring_analysis["is_hub"]:
+                score = max(score, 0.60)
+                reasons.append({
+                    "signal": "collection_hub_pattern",
+                    "weight": 0.35,
+                    "explanation": "Account exhibits fan-in collection hub structure consistent with smurfing aggregation."
+                })
+            if ring_analysis["layering_depth"] >= 3:
+                reasons.append({
+                    "signal": "deep_layering_path",
+                    "weight": 0.20,
+                    "explanation": f"Funds traceable through {ring_analysis['layering_depth']}-hop layering structure from this account."
+                })
+        except Exception as e:
+            print(f"[NetworkRiskEngine] RingDetector error: {e}")
 
         # High mean GAT attention on this account's edges (ring signal)
         incident_attn = [
