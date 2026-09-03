@@ -324,7 +324,15 @@ class SequenceRiskEngine:
                 ),
             })
 
-        return min(1.0, max(0.01, round(score, 4))), factors[:6]
+        # De-duplicate factors, keep highest absolute impact per feature
+        seen = {}
+        for f in factors:
+            key = f["feature"]
+            if key not in seen or abs(f["impact"]) > abs(seen[key]["impact"]):
+                seen[key] = f
+        deduped = sorted(seen.values(), key=lambda x: abs(x["impact"]), reverse=True)
+
+        return min(1.0, max(0.01, round(score, 4))), deduped[:6]
 
 
 sequence_risk_engine = SequenceRiskEngine()
